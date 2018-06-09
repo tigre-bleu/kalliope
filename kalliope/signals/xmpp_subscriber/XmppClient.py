@@ -10,7 +10,7 @@ logging.basicConfig()
 logger = logging.getLogger("kalliope")
 
 
-class XmppClient(Thread):
+class XmppClient(Thread, sleekxmpp.ClientXMPP):
 
     def __init__(self, jid=None, password=None):
         """
@@ -22,14 +22,15 @@ class XmppClient(Thread):
         :type password: String
         """
         super(XmppClient, self).__init__()
-        self.jid = jid
-        self.password = password
+        logger.debug("[XmppClient] Initialization")
 
-        if self.jid is not None and self.password is not None:
-            logger.debug("[XmppClient] Jid and password are set")
+        if jid is not None and password is not None:
+            logger.debug("[XmppClient] Jid is " + jid + " and password is set")
             sleekxmpp.ClientXMPP.__init__(self, jid, password)
             self.add_event_handler("session_start", self.on_start)
             self.add_event_handler("message", self.on_message)
+        else:
+            logger.debug("[XmppClient] Jid and password are not set")
 
     def on_start(self, event):
         self.send_presence()
@@ -37,4 +38,4 @@ class XmppClient(Thread):
 
     def on_message(self, msg):
         if msg['type'] in ('chat', 'normal'):
-            logger.debug(msg['from'].bare + ": " + msg['body'])
+            logger.debug("[XmppClient] Message received from " + msg['from'].bare + ": " + msg['body'])

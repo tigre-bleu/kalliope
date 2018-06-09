@@ -25,9 +25,12 @@ class Xmpp_subscriber(SignalModule, Thread):
     def run(self):
         logger.debug("[Xmpp_subscriber] Starting Xmpp_subscriber")
 
-        # now instantiate an XMPP client
-        xmpp_client = XmppClient(jid=self.jid, password=self.password)
-        xmpp_client.start()
+        # we need to sort jid and attach synapses name to run to it
+        list_clients_to_instantiate = self.get_list_clients_to_instantiate(self.list_synapses_with_xmpp)
+
+        # now instantiate an XMPP client for each jid
+        self.instantiate_xmpp_clients(list_clients_to_instantiate)
+
 
     @staticmethod
     def check_parameters(parameters):
@@ -43,3 +46,45 @@ class Xmpp_subscriber(SignalModule, Thread):
             return False
 
         return True
+
+    @staticmethod
+    def get_list_clients_to_instantiate(list_synapse_with_xmpp_subscriber):
+        """
+        return a list of jid object from the given list of synapse
+        :param list_synapse_with_xmpp_subscriber: list of Synapse object
+        :return: list of Jid
+        """
+        returned_list_of_clients = list()
+
+        for synapse in list_synapse_with_xmpp_subscriber:
+            for signal in synapse.signals:
+                # check if the client exist in the list
+                if not any(x.jid == signal.parameters["jid"] for x in returned_list_of_clients):
+                    logger.debug("[Xmpp_subscriber] Create new client: %s" % signal.parameters["jid"])
+                    # create a new Client object
+                    returned_list_of_clients.append({"jid": signal.parameters["jid"], "password": signal.parameters["password"]})
+
+        return returned_list_of_clients
+
+
+    def instantiate_xmpp_clients(self, list_clients_to_instantiate):
+        """
+        Instantiate a XmppClient thread for each broker
+        :param list_clients_to_instantiate: list of clients to run
+        """
+        for client in list_clients_to_instantiate:
+            xmpp_client = XmppClient(jid=client["jid"], password=client["password"])
+            # Connect to the XMPP server and start processing XMPP stanzas.
+            if xmpp_client.connect():
+                # If you do not have the dnspython library installed, you will need
+                # to manually specify the name of the server if it does not match
+                # the one in the JID. For example, to use Google Talk you would
+                # need to use:
+                #
+                # if xmpp.connect(('talk.google.com', 5222)):
+                #     ...
+                logger.debug("[XmppClient] Connecting " + client["jid"])
+                xmpp_client.process(block=True)
+                logger.debug("[XmppClient] Connected to " + client["jid"])
+            else:
+                logger.debug("[XmppClient] Unable to connect to " + client["jid"])
