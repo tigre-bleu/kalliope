@@ -59,10 +59,12 @@ class Xmpp_subscriber(SignalModule, Thread):
         for synapse in list_synapse_with_xmpp_subscriber:
             for signal in synapse.signals:
                 # check if the client exist in the list
-                if not any(x.jid == signal.parameters["jid"] for x in returned_list_of_clients):
+                if not any(x["jid"] == signal.parameters["jid"] for x in returned_list_of_clients):
                     logger.debug("[Xmpp_subscriber] Create new client: %s" % signal.parameters["jid"])
                     # create a new Client object
-                    returned_list_of_clients.append({"jid": signal.parameters["jid"], "password": signal.parameters["password"]})
+                    synapses = list()
+                    synapses.append(synapse)
+                    returned_list_of_clients.append({"jid": signal.parameters["jid"], "password": signal.parameters["password"], "synapses": synapses})
 
         return returned_list_of_clients
 
@@ -73,7 +75,7 @@ class Xmpp_subscriber(SignalModule, Thread):
         :param list_clients_to_instantiate: list of clients to run
         """
         for client in list_clients_to_instantiate:
-            xmpp_client = XmppClient(jid=client["jid"], password=client["password"])
+            xmpp_client = XmppClient(jid=client["jid"], password=client["password"], synapses=client["synapses"], brain=self.brain)
             # Connect to the XMPP server and start processing XMPP stanzas.
             if xmpp_client.connect():
                 # If you do not have the dnspython library installed, you will need
@@ -84,7 +86,7 @@ class Xmpp_subscriber(SignalModule, Thread):
                 # if xmpp.connect(('talk.google.com', 5222)):
                 #     ...
                 logger.debug("[XmppClient] Connecting " + client["jid"])
-                xmpp_client.process(block=True)
+                xmpp_client.process()
                 logger.debug("[XmppClient] Connected to " + client["jid"])
             else:
                 logger.debug("[XmppClient] Unable to connect to " + client["jid"])
